@@ -14,4 +14,4 @@ else
   echo "DATASETS_PATH is not set. Using default path: $DATASETS_PATH"
 fi
 
-docker-compose -p lerobot build
+docker-compose build

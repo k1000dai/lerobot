@@ -18,5 +18,5 @@ fi
 # Setting up wandb key
 export WANDB_API_KEY=`cat wandb_key.txt`
 
-docker-compose -p lerobot up &
+docker-compose up &
 
