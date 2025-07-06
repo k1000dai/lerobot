@@ -885,11 +885,11 @@ class MotorsBus(abc.ABC):
                 break
             logger.debug(f"ping failed for {id_=}: {n_try=} got {comm=} {error=}")
 
-        if not self._is_comm_success(comm):
-            if raise_on_error:
-                raise ConnectionError(self.packet_handler.getTxRxResult(comm))
-            else:
-                return
+        # if not self._is_comm_success(comm):
+        #     if raise_on_error:
+        #         raise ConnectionError(self.packet_handler.getTxRxResult(comm))
+        #     else:
+        #         return
         if self._is_error(error):
             if raise_on_error:
                 raise RuntimeError(self.packet_handler.getRxPacketError(error))
@@ -979,10 +979,10 @@ class MotorsBus(abc.ABC):
                 + self.packet_handler.getTxRxResult(comm)
             )
 
-        if not self._is_comm_success(comm) and raise_on_error:
-            raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
-        elif self._is_error(error) and raise_on_error:
-            raise RuntimeError(f"{err_msg} {self.packet_handler.getRxPacketError(error)}")
+        # if not self._is_comm_success(comm) and raise_on_error:
+        #     raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
+        # elif self._is_error(error) and raise_on_error:
+        #     raise RuntimeError(f"{err_msg} {self.packet_handler.getRxPacketError(error)}")
 
         return value, comm, error
 
@@ -1042,10 +1042,10 @@ class MotorsBus(abc.ABC):
                 + self.packet_handler.getTxRxResult(comm)
             )
 
-        if not self._is_comm_success(comm) and raise_on_error:
-            raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
-        elif self._is_error(error) and raise_on_error:
-            raise RuntimeError(f"{err_msg} {self.packet_handler.getRxPacketError(error)}")
+        # if not self._is_comm_success(comm) and raise_on_error:
+        #     raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
+        # elif self._is_error(error) and raise_on_error:
+        #     raise RuntimeError(f"{err_msg} {self.packet_handler.getRxPacketError(error)}")
 
         return comm, error
 
@@ -1117,9 +1117,9 @@ class MotorsBus(abc.ABC):
                 + self.packet_handler.getTxRxResult(comm)
             )
 
-        if not self._is_comm_success(comm) and raise_on_error:
-            raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
 
+        # if not self._is_comm_success(comm) and raise_on_error:
+        #     raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
         values = {id_: self.sync_reader.getData(id_, addr, length) for id_ in motor_ids}
         return values, comm
 
@@ -1205,8 +1205,8 @@ class MotorsBus(abc.ABC):
                 + self.packet_handler.getTxRxResult(comm)
             )
 
-        if not self._is_comm_success(comm) and raise_on_error:
-            raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
+        # if not self._is_comm_success(comm) and raise_on_error:
+        #     raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
 
         return comm
 
