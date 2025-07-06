@@ -52,7 +52,7 @@ class XLerobot(Robot):
         super().__init__(config)
         self.config = config
         norm_mode_body = MotorNormMode.DEGREES if config.use_degrees else MotorNormMode.RANGE_M100_100
-        if self.calibration is not None:
+        if self.calibration.get("left_arm_shoulder_pan") is not None:
             calibration1 = {
                 "left_arm_shoulder_pan": self.calibration.get("left_arm_shoulder_pan"),
                 "left_arm_shoulder_lift": self.calibration.get("left_arm_shoulder_lift"),
@@ -82,7 +82,7 @@ class XLerobot(Robot):
             },
             calibration= calibration1,
         )
-        if self.calibration is not None:
+        if self.calibration.get("right_arm_shoulder_pan") is not None:
             calibration2 = {
                 "right_arm_shoulder_pan": self.calibration.get("right_arm_shoulder_pan"),
                 "right_arm_shoulder_lift": self.calibration.get("right_arm_shoulder_lift"),
