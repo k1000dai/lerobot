@@ -31,7 +31,7 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
     }
 
 
-@RobotConfig.register_subclass("lekiwi")
+@RobotConfig.register_subclass("xlerobot")
 @dataclass
 class XLerobotConfig(RobotConfig):
     
@@ -64,7 +64,6 @@ class XLerobotHostConfig:
 
     # If robot jitters decrease the frequency and monitor cpu load with `top` in cmd
     max_loop_freq_hz: int = 30
-
 
 @RobotConfig.register_subclass("xlerobot_client")
 @dataclass
