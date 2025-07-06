@@ -72,18 +72,18 @@ class XLerobotClient(Robot):
     def _state_ft(self) -> dict[str, type]:
         return dict.fromkeys(
             (
-                "arm_shoulder_pan_l.pos",
-                "arm_shoulder_lift_l.pos",
-                "arm_elbow_flex_l.pos",
-                "arm_wrist_flex_l.pos",
-                "arm_wrist_roll_l.pos",
-                "arm_gripper_l.pos",
-                "arm_shoulder_pan_r.pos",
-                "arm_shoulder_lift_r.pos",
-                "arm_elbow_flex_r.pos",
-                "arm_wrist_flex_r.pos",
-                "arm_wrist_roll_r.pos",
-                "arm_gripper_r.pos",
+                "left_arm_shoulder_pan.pos",
+                "left_arm_shoulder_lift.pos",
+                "left_arm_elbow_flex.pos",
+                "left_arm_wrist_flex.pos",
+                "left_arm_wrist_roll.pos",
+                "left_arm_gripper.pos",
+                "right_arm_shoulder_pan.pos",
+                "right_arm_shoulder_lift.pos",
+                "right_arm_elbow_flex.pos",
+                "right_arm_wrist_flex.pos",
+                "right_arm_wrist_roll.pos",
+                "right_arm_gripper.pos",
                 "head_motor_1.pos",
                 "head_motor_2.pos",
                 "x.vel",
@@ -301,8 +301,11 @@ class XLerobotClient(Robot):
             theta_cmd += theta_speed
         if self.teleop_keys["rotate_right"] in pressed_keys:
             theta_cmd -= theta_speed
+            
         return {
-            "x.vel": x_cmd,
+            "head_motor_1.pos": 0.0,  # Head motors are not controlled by keyboard
+            "head_motor_2.pos": 0.0,  # TODO: implement head control
+            "x.vel": x_cmd, 
             "y.vel": y_cmd,
             "theta.vel": theta_cmd,
         }

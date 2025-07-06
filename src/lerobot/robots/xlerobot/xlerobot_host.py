@@ -48,11 +48,11 @@ class XLerobotHost:
 
 
 def main():
-    logging.info("Configuring LeKiwi")
+    logging.info("Configuring Xlerobot")
     robot_config = XLerobotConfig()
     robot = XLerobot(robot_config)
 
-    logging.info("Connecting LeKiwi")
+    logging.info("Connecting Xlerobot")
     robot.connect()
 
     logging.info("Starting HostAgent")
