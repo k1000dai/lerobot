@@ -12,8 +12,8 @@ FPS = 30
 # Create the robot and teleoperator configurations
 robot_config = XLerobotClientConfig(remote_ip="192.168.10.203", id="my_lekiwi")
 # teleop_arm_config = SO100LeaderConfig(port="/dev/tty.usbmodem585A0077581", id="my_awesome_leader_arm")
-teleop_left_arm_config = SO101LeaderConfig(port="/dev/tty.usbmodem5A7A0178511", id="my_awesome_left_leader_arm")
-teleop_right_arm_config = SO101LeaderConfig(port="/dev/tty.usbmodem5A7A0178512", id="my_awesome_right_leader_arm")
+teleop_left_arm_config = SO101LeaderConfig(port="/dev/tty.usbmodem5A7A0176981", id="my_awesome_left_leader_arm")
+teleop_right_arm_config = SO101LeaderConfig(port="/dev/tty.usbmodem5A7A0178511", id="my_awesome_right_leader_arm")
 keyboard_config = KeyboardTeleopConfig(id="my_laptop_keyboard")
 
 robot = XLerobotClient(robot_config)
