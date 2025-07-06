@@ -52,6 +52,18 @@ class XLerobot(Robot):
         super().__init__(config)
         self.config = config
         norm_mode_body = MotorNormMode.DEGREES if config.use_degrees else MotorNormMode.RANGE_M100_100
+        
+        calibration1 = {
+            "left_arm_shoulder_pan": self.calibration.get("left_arm_shoulder_pan", MotorCalibration()),
+            "left_arm_shoulder_lift": self.calibration.get("left_arm_shoulder_lift", MotorCalibration()),
+            "left_arm_elbow_flex": self.calibration.get("left_arm_elbow_flex", MotorCalibration()), 
+            "left_arm_wrist_flex": self.calibration.get("left_arm_wrist_flex", MotorCalibration()),
+            "left_arm_wrist_roll": self.calibration.get("left_arm_wrist_roll", MotorCalibration()),
+            "left_arm_gripper": self.calibration.get("left_arm_gripper", MotorCalibration()),
+            "head_motor_1": self.calibration.get("head_motor_1", MotorCalibration()),
+            "head_motor_2": self.calibration.get("head_motor_2", MotorCalibration()),
+        }
+        
         self.bus1 = FeetechMotorsBus(
             port=self.config.port1,
             motors={
@@ -66,8 +78,19 @@ class XLerobot(Robot):
                 "head_motor_1": Motor(7, "sts3215", norm_mode_body),
                 "head_motor_2": Motor(8, "sts3215", norm_mode_body),
             },
-            calibration= self.calibration,
+            calibration= calibration1,
         )
+        calibration2 = {
+            "right_arm_shoulder_pan": self.calibration.get("right_arm_shoulder_pan", MotorCalibration()),
+            "right_arm_shoulder_lift": self.calibration.get("right_arm_shoulder_lift", MotorCalibration()),
+            "right_arm_elbow_flex": self.calibration.get("right_arm_elbow_flex", MotorCalibration()),
+            "right_arm_wrist_flex": self.calibration.get("right_arm_wrist_flex", MotorCalibration()),
+            "right_arm_wrist_roll": self.calibration.get("right_arm_wrist_roll", MotorCalibration()),
+            "right_arm_gripper": self.calibration.get("right_arm_gripper", MotorCalibration()),
+            "base_left_wheel": self.calibration.get("base_left_wheel", MotorCalibration()),
+            "base_back_wheel": self.calibration.get("base_back_wheel", MotorCalibration()),
+            "base_right_wheel": self.calibration.get("base_right_wheel", MotorCalibration()),
+        }
         self.bus2= FeetechMotorsBus(
             port=self.config.port2,
             motors={
@@ -83,7 +106,7 @@ class XLerobot(Robot):
                 "base_back_wheel": Motor(8, "sts3215", MotorNormMode.RANGE_M100_100),
                 "base_right_wheel": Motor(9, "sts3215", MotorNormMode.RANGE_M100_100),
             },
-            calibration=self.calibration,
+            calibration=calibration2,
         )
         self.left_arm_motors = [motor for motor in self.bus1.motors if motor.startswith("left_arm")]
         self.right_arm_motors = [motor for motor in self.bus2.motors if motor.startswith("right_arm")]
