@@ -46,7 +46,7 @@ class XLerobot(Robot):
     """
 
     config_class = XLerobotConfig
-    name = "lekiwi"
+    name = "xlerobot"
 
     def __init__(self, config: XLerobotConfig):
         super().__init__(config)
