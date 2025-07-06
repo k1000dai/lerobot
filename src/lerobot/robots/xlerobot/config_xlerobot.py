@@ -68,7 +68,7 @@ class XLerobotHostConfig:
 
 @RobotConfig.register_subclass("xlerobot_client")
 @dataclass
-class LeKiwiClientConfig(RobotConfig):
+class XLerobotClientConfig(RobotConfig):
     # Network Configuration
     remote_ip: str
     port_zmq_cmd: int = 5555
