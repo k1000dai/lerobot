@@ -54,14 +54,14 @@ class XLerobot(Robot):
         norm_mode_body = MotorNormMode.DEGREES if config.use_degrees else MotorNormMode.RANGE_M100_100
         
         calibration1 = {
-            "left_arm_shoulder_pan": self.calibration.get("left_arm_shoulder_pan", MotorCalibration()),
-            "left_arm_shoulder_lift": self.calibration.get("left_arm_shoulder_lift", MotorCalibration()),
-            "left_arm_elbow_flex": self.calibration.get("left_arm_elbow_flex", MotorCalibration()), 
-            "left_arm_wrist_flex": self.calibration.get("left_arm_wrist_flex", MotorCalibration()),
-            "left_arm_wrist_roll": self.calibration.get("left_arm_wrist_roll", MotorCalibration()),
-            "left_arm_gripper": self.calibration.get("left_arm_gripper", MotorCalibration()),
-            "head_motor_1": self.calibration.get("head_motor_1", MotorCalibration()),
-            "head_motor_2": self.calibration.get("head_motor_2", MotorCalibration()),
+            "left_arm_shoulder_pan": self.calibration.get("left_arm_shoulder_pan"),
+            "left_arm_shoulder_lift": self.calibration.get("left_arm_shoulder_lift"),
+            "left_arm_elbow_flex": self.calibration.get("left_arm_elbow_flex"), 
+            "left_arm_wrist_flex": self.calibration.get("left_arm_wrist_flex"),
+            "left_arm_wrist_roll": self.calibration.get("left_arm_wrist_roll"),
+            "left_arm_gripper": self.calibration.get("left_arm_gripper"),
+            "head_motor_1": self.calibration.get("head_motor_1"),
+            "head_motor_2": self.calibration.get("head_motor_2"),
         }
         
         self.bus1 = FeetechMotorsBus(
@@ -81,15 +81,15 @@ class XLerobot(Robot):
             calibration= calibration1,
         )
         calibration2 = {
-            "right_arm_shoulder_pan": self.calibration.get("right_arm_shoulder_pan", MotorCalibration()),
-            "right_arm_shoulder_lift": self.calibration.get("right_arm_shoulder_lift", MotorCalibration()),
-            "right_arm_elbow_flex": self.calibration.get("right_arm_elbow_flex", MotorCalibration()),
-            "right_arm_wrist_flex": self.calibration.get("right_arm_wrist_flex", MotorCalibration()),
-            "right_arm_wrist_roll": self.calibration.get("right_arm_wrist_roll", MotorCalibration()),
-            "right_arm_gripper": self.calibration.get("right_arm_gripper", MotorCalibration()),
-            "base_left_wheel": self.calibration.get("base_left_wheel", MotorCalibration()),
-            "base_back_wheel": self.calibration.get("base_back_wheel", MotorCalibration()),
-            "base_right_wheel": self.calibration.get("base_right_wheel", MotorCalibration()),
+            "right_arm_shoulder_pan": self.calibration.get("right_arm_shoulder_pan"),
+            "right_arm_shoulder_lift": self.calibration.get("right_arm_shoulder_lift"),
+            "right_arm_elbow_flex": self.calibration.get("right_arm_elbow_flex"),
+            "right_arm_wrist_flex": self.calibration.get("right_arm_wrist_flex"),
+            "right_arm_wrist_roll": self.calibration.get("right_arm_wrist_roll"),
+            "right_arm_gripper": self.calibration.get("right_arm_gripper"),
+            "base_left_wheel": self.calibration.get("base_left_wheel"),
+            "base_back_wheel": self.calibration.get("base_back_wheel"),
+            "base_right_wheel": self.calibration.get("base_right_wheel"),
         }
         self.bus2= FeetechMotorsBus(
             port=self.config.port2,
