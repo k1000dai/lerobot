@@ -198,6 +198,7 @@ class XLerobot(Robot):
         )
         
         homing_offsets = self.bus2.set_half_turn_homings(self.right_arm_motors)
+        homing_offsets.update(dict.fromkeys(self.base_motors, 0))
         
         full_turn_motor = [
             motor for motor in right_motors if any(keyword in motor for keyword in ["wheel"])
