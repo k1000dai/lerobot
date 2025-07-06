@@ -85,8 +85,8 @@ class XLerobot(Robot):
             },
             calibration=self.calibration,
         )
-        self.left_arm_motors = [motor for motor in self.bus1.motors if motor.startswith("arm")]
-        self.right_arm_motors = [motor for motor in self.bus2.motors if motor.startswith("arm")]
+        self.left_arm_motors = [motor for motor in self.bus1.motors if motor.startswith("left_arm")]
+        self.right_arm_motors = [motor for motor in self.bus2.motors if motor.startswith("right_arm")]
         self.head_motors = [motor for motor in self.bus1.motors if motor.startswith("head")]
         self.base_motors = [motor for motor in self.bus2.motors if motor.startswith("base")]
         self.cameras = make_cameras_from_configs(config.cameras)
@@ -468,10 +468,10 @@ class XLerobot(Robot):
         if not self.is_connected:
             raise DeviceNotConnectedError(f"{self} is not connected.")
         
-        left_arm_pos = {k: v for k, v in action.items() if k.startswith("arm_") and k.endswith(".pos") and "_l" in k}
-        right_arm_pos = {k: v for k, v in action.items() if k.startswith("arm_") and k.endswith(".pos") and "_r" in k}
+        left_arm_pos = {k: v for k, v in action.items() if k.startswith("left_arm_") and k.endswith(".pos")}
+        right_arm_pos = {k: v for k, v in action.items() if k.startswith("right_arm_") and k.endswith(".pos")}
         head_pos = {k: v for k, v in action.items() if k.startswith("head_") and k.endswith(".pos")}
-        base_goal_vel = {k: v for k, v in action.items() if k.endswith(".vel") and not k.startswith("arm_")}
+        base_goal_vel = {k: v for k, v in action.items() if k.endswith(".vel")}
         base_wheel_goal_vel = self._body_to_wheel_raw(
             base_goal_vel.get("x.vel", 0.0),
             base_goal_vel.get("y.vel", 0.0),
