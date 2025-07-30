@@ -69,7 +69,7 @@ class XLerobotClient(Robot):
         self.logs = {}
         
         self.camera_1_pos = 0.0
-        self.camera_2_pos = 0.0
+        self.camera_2_pos = 70
 
     @cached_property
     def _state_ft(self) -> dict[str, type]:
