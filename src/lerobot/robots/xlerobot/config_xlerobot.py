@@ -40,7 +40,7 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
             serial_number_or_name="825312073024",use_depth=False, fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
         ),
         "right_wrist": RealSenseCameraConfig(
-            serial_number_or_name="825312073024",use_depth=False, fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+            serial_number_or_name="728612070893",use_depth=False, fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
         ),  
             
     }
