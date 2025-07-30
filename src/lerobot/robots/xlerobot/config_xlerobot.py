@@ -16,21 +16,33 @@ from dataclasses import dataclass, field
 
 from lerobot.cameras.configs import CameraConfig, Cv2Rotation
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
-
+from lerobot.cameras.realsense.configuration_realsense import RealSenseCameraConfig
 from ..config import RobotConfig
 
 
 def xlerobot_cameras_config() -> dict[str, CameraConfig]:
+    # return {
+    #     "left_wrist": OpenCVCameraConfig(
+    #         index_or_path="/dev/video2", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+    #     ),
+    #     "head": OpenCVCameraConfig(
+    #         index_or_path="/dev/video5", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+    #     ),
+    #     "right_wrist": OpenCVCameraConfig(
+    #         index_or_path="/dev/video8", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+    #     ),
+    # }
     return {
-        "left_wrist": OpenCVCameraConfig(
-            index_or_path="/dev/video2", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+        "left_wrist": RealSenseCameraConfig(
+            serial_number_or_name=825312070755,use_depth=False, fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
         ),
-        "head": OpenCVCameraConfig(
-            index_or_path="/dev/video5", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+        "head": RealSenseCameraConfig(
+            serial_number_or_name=825312073024,use_depth=False, fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
         ),
-        "right_wrist": OpenCVCameraConfig(
-            index_or_path="/dev/video8", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
-        ),
+        "right_wrist": RealSenseCameraConfig(
+            serial_number_or_name=825312073024,use_depth=False, fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+        ),  
+            
     }
 
 
@@ -79,8 +91,8 @@ class XLerobotClientConfig(RobotConfig):
     teleop_keys: dict[str, str] = field(
         default_factory=lambda: {
             # Movement
-            "forward": "w",
-            "backward": "s",
+            "forward": "s",
+            "backward": "w",
             "left": "a",
             "right": "d",
             "rotate_left": "z",
