@@ -304,13 +304,13 @@ class XLerobotClient(Robot):
             theta_cmd += theta_speed
         if self.teleop_keys["rotate_right"] in pressed_keys:
             theta_cmd -= theta_speed
-        if self.teleop_keys["camera_left"] in pressed_keys:
+        if self.teleop_keys["camera_left"] in pressed_keys and self.camera_1_pos > -95.0:
             self.camera_1_pos -= 1.5  # Adjust camera position
-        if self.teleop_keys["camera_right"] in pressed_keys:
+        if self.teleop_keys["camera_right"] in pressed_keys and self.camera_1_pos < 95.0:
             self.camera_1_pos += 1.5
-        if self.teleop_keys["camera_up"] in pressed_keys:
+        if self.teleop_keys["camera_up"] in pressed_keys and self.camera_2_pos > -95.0:
             self.camera_2_pos -= 1.5
-        if self.teleop_keys["camera_down"] in pressed_keys:
+        if self.teleop_keys["camera_down"] in pressed_keys and self.camera_2_pos < 95.0:
             self.camera_2_pos += 1.5
             
         return {

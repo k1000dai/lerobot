@@ -254,6 +254,70 @@ def record_loop(
 
         timestamp = time.perf_counter() - start_episode_t
 
+@safe_stop_image_writer
+def record_loop_for_xlerobot(
+    robot: Robot,
+    events: dict,
+    fps: int,
+    dataset: LeRobotDataset | None = None,
+    left_arm: so101_leader.SO101Leader | None = None,
+    right_arm: so101_leader.SO101Leader | None = None,
+    keyboard: KeyboardTeleop | None = None,
+    policy: PreTrainedPolicy | None = None,
+    control_time_s: int | None = None,
+    single_task: str | None = None,
+    display_data: bool = False,
+):
+    if dataset is not None and dataset.fps != fps:
+        raise ValueError(f"The dataset fps should be equal to requested fps ({dataset.fps} != {fps}).")
+
+    teleop_keyboard = keyboard
+    teleop_left_arm = left_arm
+    teleop_right_arm = right_arm
+
+    # if policy is given it needs cleaning up
+    if policy is not None:
+        policy.reset()
+
+    timestamp = 0
+    start_episode_t = time.perf_counter()
+    while timestamp < control_time_s:
+        start_loop_t = time.perf_counter()
+
+        if events["exit_early"]:
+            events["exit_early"] = False
+            break
+
+        observation = robot.get_observation()
+        left_arm_action = teleop_left_arm.get_action()
+        right_arm_action = teleop_right_arm.get_action()
+        keyboard_action = teleop_keyboard.get_action()
+        base_action = robot._from_keyboard_to_base_action(keyboard_action)
+        action = {
+            **{f"left_arm_{k}": v for k, v in left_arm_action.items()},
+            **{f"right_arm_{k}": v for k, v in right_arm_action.items()},
+            **base_action,
+        }
+
+        # Action can eventually be clipped using `max_relative_target`,
+        # so action actually sent is saved in the dataset.
+        sent_action = robot.send_action(action)
+        
+        
+        if dataset is not None:
+            observation_frame = build_dataset_frame(dataset.features, observation, prefix="observation")
+            action_frame = build_dataset_frame(dataset.features, sent_action, prefix="action")
+            frame = {**observation_frame, **action_frame}
+            dataset.add_frame(frame, task=single_task)
+
+        if display_data:
+            log_rerun_data(observation, action)
+
+        dt_s = time.perf_counter() - start_loop_t
+        busy_wait(1 / fps - dt_s)
+
+        timestamp = time.perf_counter() - start_episode_t
+
 
 @parser.wrap()
 def record(cfg: RecordConfig) -> LeRobotDataset:
