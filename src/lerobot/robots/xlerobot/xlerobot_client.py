@@ -67,6 +67,9 @@ class XLerobotClient(Robot):
 
         self._is_connected = False
         self.logs = {}
+        
+        self.camera_1_pos = 0.0
+        self.camera_2_pos = 0.0
 
     @cached_property
     def _state_ft(self) -> dict[str, type]:
@@ -262,7 +265,7 @@ class XLerobotClient(Robot):
         and a camera frame. Receives over ZMQ, translate to body-frame vel
         """
         if not self._is_connected:
-            raise DeviceNotConnectedError("LeKiwiClient is not connected. You need to run `robot.connect()`.")
+            raise DeviceNotConnectedError("XLerobot Client is not connected. You need to run `robot.connect()`.")
 
         frames, obs_dict = self._get_data()
 
@@ -301,10 +304,18 @@ class XLerobotClient(Robot):
             theta_cmd += theta_speed
         if self.teleop_keys["rotate_right"] in pressed_keys:
             theta_cmd -= theta_speed
+        if self.teleop_keys["camera_left"] in pressed_keys:
+            self.camera_1_pos -= 1.5  # Adjust camera position
+        if self.teleop_keys["camera_right"] in pressed_keys:
+            self.camera_1_pos += 1.5
+        if self.teleop_keys["camera_up"] in pressed_keys:
+            self.camera_2_pos -= 1.5
+        if self.teleop_keys["camera_down"] in pressed_keys:
+            self.camera_2_pos += 1.5
             
         return {
-            "head_motor_1.pos": 0.0,  # Head motors are not controlled by keyboard
-            "head_motor_2.pos": 0.0,  # TODO: implement head control
+            "head_motor_1.pos": self.camera_1_pos,  # Head motors are not controlled by keyboard
+            "head_motor_2.pos": self.camera_2_pos,  # TODO: implement head control
             "x.vel": x_cmd, 
             "y.vel": y_cmd,
             "theta.vel": theta_cmd,

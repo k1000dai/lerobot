@@ -88,6 +88,11 @@ class XLerobotClientConfig(RobotConfig):
             # Speed control
             "speed_up": "r",
             "speed_down": "f",
+            # camera control
+            "camera_left": "j",
+            "camera_right": "l",
+            "camera_up": "i",
+            "camera_down": "k",
             # quit teleop
             "quit": "q",
         }
