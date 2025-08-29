@@ -1,32 +1,24 @@
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.datasets.utils import hw_to_dataset_features
+from lerobot.policies.act.modeling_act import ACTPolicy
 from lerobot.record import record_loop_for_xlerobot
 from lerobot.robots.xlerobot import XLerobotClient, XLerobotClientConfig
-from lerobot.teleoperators.keyboard.teleop_keyboard import KeyboardTeleop, KeyboardTeleopConfig
-# from lerobot.teleoperators.so100_leader import SO100Leader, SO100LeaderConfig
-from lerobot.teleoperators.so101_leader import SO101Leader, SO101LeaderConfig
 from lerobot.utils.control_utils import init_keyboard_listener
 from lerobot.utils.utils import log_say
 from lerobot.utils.visualization_utils import _init_rerun
-import rerun as rr
 
-NUM_EPISODES = 100
+NUM_EPISODES = 2
 FPS = 30
 EPISODE_TIME_SEC = 180
-RESET_TIME_SEC = 10
-REPO_ID = "k1000dai/pick_and_open_bottle"
 TASK_DESCRIPTION = "pick up bottle and open it"
+MODEL_REPO_ID = "k1000dai/act_pick_and_open_bottle"
+EVAL_DATASET_REPO_ID = "k1000dai/eval_pick_and_open_bottle"
+
+# Create the robot and teleoperator configurations
 
 robot_config = XLerobotClientConfig(remote_ip="192.168.10.203", id="my_lekiwi")
-# teleop_arm_config = SO100LeaderConfig(port="/dev/tty.usbmodem585A0077581", id="my_awesome_leader_arm")
-teleop_left_arm_config = SO101LeaderConfig(port="/dev/ttyACM0", id="my_awesome_left_leader_arm")
-teleop_right_arm_config = SO101LeaderConfig(port="/dev/ttyACM1", id="my_awesome_right_leader_arm")
-keyboard_config = KeyboardTeleopConfig(id="my_laptop_keyboard")
-
 robot = XLerobotClient(robot_config)
-leader_left_arm = SO101Leader(teleop_left_arm_config)
-leader_right_arm = SO101Leader(teleop_right_arm_config)
-keyboard = KeyboardTeleop(keyboard_config)
+policy = ACTPolicy.from_pretrained(MODEL_REPO_ID)
 
 # Configure the dataset features
 action_features = hw_to_dataset_features(robot.action_features, "action")
@@ -35,7 +27,7 @@ dataset_features = {**action_features, **obs_features}
 
 # Create the dataset
 dataset = LeRobotDataset.create(
-    repo_id=REPO_ID,
+    repo_id=EVAL_DATASET_REPO_ID,
     fps=FPS,
     features=dataset_features,
     robot_type=robot.name,
@@ -45,34 +37,25 @@ dataset = LeRobotDataset.create(
 
 # To connect you already should have this script running on LeKiwi: `python -m lerobot.robots.lekiwi.lekiwi_host --robot.id=my_awesome_kiwi`
 robot.connect()
-leader_left_arm.connect()
-leader_right_arm.connect()
-keyboard.connect()
 
-# Close any existing rerun session and start fresh
+_init_rerun(session_name="recording")
 
 listener, events = init_keyboard_listener()
 
-
-if not robot.is_connected or not leader_left_arm.is_connected or not leader_right_arm.is_connected or not keyboard.is_connected:
-    raise ValueError("Robot, leader arm of keyboard is not connected!")
+if not robot.is_connected:
+    raise ValueError("Robot is not connected!")
 
 recorded_episodes = 0
 while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
-    log_say(f"Recording episode {recorded_episodes}")
-    
-    # Start fresh rerun session for each episode
-    _init_rerun(session_name=f"lekiwi_record_episode_{recorded_episodes}")
+    log_say(f"Running inference, recording eval episode {recorded_episodes} of {NUM_EPISODES}")
 
-    # Run the record loop
+    # Run the policy inference loop
     record_loop_for_xlerobot(
         robot=robot,
         events=events,
         fps=FPS,
+        policy=policy,
         dataset=dataset,
-        left_arm=leader_left_arm,
-        right_arm=leader_right_arm,
-        keyboard=keyboard,
         control_time_s=EPISODE_TIME_SEC,
         single_task=TASK_DESCRIPTION,
         display_data=True,
@@ -87,11 +70,7 @@ while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
             robot=robot,
             events=events,
             fps=FPS,
-            dataset=dataset,
-            left_arm=leader_left_arm,
-            right_arm=leader_right_arm,
-            keyboard=keyboard,
-            control_time_s=RESET_TIME_SEC,
+            control_time_s=EPISODE_TIME_SEC,
             single_task=TASK_DESCRIPTION,
             display_data=True,
         )
@@ -106,13 +85,8 @@ while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
     dataset.save_episode()
     recorded_episodes += 1
 
-    rr.rerun_shutdown()
-
 # Upload to hub and clean up
 dataset.push_to_hub()
 
 robot.disconnect()
-leader_left_arm.disconnect()
-leader_right_arm.disconnect()
-keyboard.disconnect()
 listener.stop()
