@@ -289,15 +289,38 @@ def record_loop_for_xlerobot(
             break
 
         observation = robot.get_observation()
-        left_arm_action = teleop_left_arm.get_action()
-        right_arm_action = teleop_right_arm.get_action()
-        keyboard_action = teleop_keyboard.get_action()
-        base_action = robot._from_keyboard_to_base_action(keyboard_action)
-        action = {
-            **{f"left_arm_{k}": v for k, v in left_arm_action.items()},
-            **{f"right_arm_{k}": v for k, v in right_arm_action.items()},
-            **base_action,
-        }
+        
+        if policy is not None or dataset is not None:
+            observation_frame = build_dataset_frame(dataset.features, observation, prefix="observation")
+            
+        if policy is not None:
+            action_values = predict_action(
+                observation_frame,
+                policy,
+                get_safe_torch_device(policy.config.device),
+                policy.config.use_amp,
+                task=single_task,
+                robot_type=robot.robot_type,
+            )
+            action = {key: action_values[i].item() for i, key in enumerate(robot.action_features)}
+            print(action)
+        elif policy is None and teleop_left_arm is not None and teleop_right_arm is not None and teleop_keyboard is not None:
+            left_arm_action = teleop_left_arm.get_action()
+            right_arm_action = teleop_right_arm.get_action()
+            keyboard_action = teleop_keyboard.get_action()
+            base_action = robot._from_keyboard_to_base_action(keyboard_action)
+            action = {
+                **{f"left_arm_{k}": v for k, v in left_arm_action.items()},
+                **{f"right_arm_{k}": v for k, v in right_arm_action.items()},
+                **base_action,
+            }
+        else:
+            logging.info(
+                "No policy or teleoperator provided, skipping action generation."
+                "This is likely to happen when resetting the environment without a teleop device."
+                "The robot won't be at its rest position at the start of the next episode."
+            )
+            continue
 
         # Action can eventually be clipped using `max_relative_target`,
         # so action actually sent is saved in the dataset.
@@ -305,7 +328,6 @@ def record_loop_for_xlerobot(
         
         
         if dataset is not None:
-            observation_frame = build_dataset_frame(dataset.features, observation, prefix="observation")
             action_frame = build_dataset_frame(dataset.features, sent_action, prefix="action")
             frame = {**observation_frame, **action_frame}
             dataset.add_frame(frame, task=single_task)
