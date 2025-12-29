@@ -71,7 +71,7 @@ while True:
 
     observation = robot.get_observation() if not NO_ROBOT else {}
     arm_actions = leader.get_action() if not NO_LEADER else {}
-    arm_actions = {f"arm_{k}": v for k, v in arm_actions.items()}
+    arm_actions = {f"{k}": v for k, v in arm_actions.items()}
     keyboard_keys = keyboard.get_action()
     base_action = robot._from_keyboard_to_base_action(keyboard_keys)
     lift_action = robot._from_keyboard_to_lift_action(keyboard_keys)

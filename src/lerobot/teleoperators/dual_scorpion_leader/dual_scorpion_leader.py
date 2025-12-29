@@ -251,8 +251,8 @@ class DualScorpionLeader(Teleoperator):
         action_right = self.right_bus.sync_read("Present_Position")
         action_left = self.left_bus.sync_read("Present_Position")
 
-        action = {f"right_{motor}.pos": val for motor, val in action_right.items()}
-        action.update({f"left_{motor}.pos": val for motor, val in action_left.items()})
+        action = {f"{motor}.pos": val for motor, val in action_right.items()}
+        action.update({f"{motor}.pos": val for motor, val in action_left.items()})
 
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read action: {dt_ms:.1f}ms")
