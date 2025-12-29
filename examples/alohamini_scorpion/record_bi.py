@@ -3,8 +3,8 @@
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.datasets.utils import hw_to_dataset_features
 from lerobot.processor import make_default_processors
-from lerobot.robots.alohamini.config_lekiwi import LeKiwiClientConfig
-from lerobot.robots.alohamini.lekiwi_client import LeKiwiClient
+from lerobot.robots.alohamini_scorpion.config_lekiwi import LeKiwiClientConfig
+from lerobot.robots.alohamini_scorpion.lekiwi_client import LeKiwiClient
 from lerobot.scripts.lerobot_record import record_loop
 from lerobot.teleoperators.keyboard import KeyboardTeleop, KeyboardTeleopConfig
 from lerobot.teleoperators.bi_so100_leader import BiSO100Leader, BiSO100LeaderConfig
@@ -19,13 +19,18 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(description="Record episodes with bi-arm teleoperation")
-    parser.add_argument("--dataset", type=str, required=True,
-                    help="Dataset repo_id, e.g. liyitenga/record_20250914225057")
+    parser.add_argument(
+        "--dataset", type=str, required=True, help="Dataset repo_id, e.g. liyitenga/record_20250914225057"
+    )
     parser.add_argument("--num_episodes", type=int, default=1, help="Number of episodes to record")
     parser.add_argument("--fps", type=int, default=30, help="Frames per second")
     parser.add_argument("--episode_time", type=int, default=60, help="Duration of each episode (seconds)")
-    parser.add_argument("--reset_time", type=int, default=10, help="Reset duration between episodes (seconds)")
-    parser.add_argument("--task_description", type=str, default="My task description4", help="Task description")
+    parser.add_argument(
+        "--reset_time", type=int, default=10, help="Reset duration between episodes (seconds)"
+    )
+    parser.add_argument(
+        "--task_description", type=str, default="My task description4", help="Task description"
+    )
     parser.add_argument("--remote_ip", type=str, default="127.0.0.1", help="Robot host IP")
     parser.add_argument("--robot_id", type=str, default="lekiwi_host", help="Robot ID")
     parser.add_argument("--leader_id", type=str, default="so101_leader_bi", help="Leader arm device ID")

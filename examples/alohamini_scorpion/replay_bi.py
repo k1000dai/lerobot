@@ -2,8 +2,8 @@ import time
 import argparse
 
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
-from lerobot.robots.alohamini.config_lekiwi import LeKiwiClientConfig
-from lerobot.robots.alohamini.lekiwi_client import LeKiwiClient
+from lerobot.robots.alohamini_scorpion.config_lekiwi import LeKiwiClientConfig
+from lerobot.robots.alohamini_scorpion.lekiwi_client import LeKiwiClient
 from lerobot.utils.robot_utils import precise_sleep
 from lerobot.utils.utils import log_say
 
