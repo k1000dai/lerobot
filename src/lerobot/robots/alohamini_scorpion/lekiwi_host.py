@@ -55,7 +55,7 @@ def main():
     robot = LeKiwi(robot_config)
 
     logging.info("Connecting AlohaMini")
-    robot.connect()
+    robot.connect(home_lift=False)
 
     logging.info("Starting HostAgent")
     host_config = LeKiwiHostConfig()

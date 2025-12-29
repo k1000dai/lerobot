@@ -170,7 +170,7 @@ class LeKiwi(Robot):
             and cams_ok
         )
 
-    def connect(self, calibrate: bool = True) -> None:
+    def connect(self, calibrate: bool = True, home_lift: bool = True) -> None:
         if self.is_connected:
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
@@ -188,8 +188,10 @@ class LeKiwi(Robot):
         self.configure()
         logger.info(f"{self} connected.")
 
-        self.lift.home()
-        print("Lift axis homed to 0mm.")
+        self.lift.configure()
+        if home_lift:
+            self.lift.home()
+            print("Lift axis homed to 0mm.")
 
     @property
     def is_calibrated(self) -> bool:
