@@ -50,14 +50,14 @@ class DualScorpionLeader(Teleoperator):
 
         # Separate calibration data for right and left arms / キャリブレーションデータを右腕と左腕用に分離
         right_calibration = {
-            motor.replace("right_", ""): calib
+            motor: calib
             for motor, calib in self.calibration.items()
-            if motor.startswith("right_")
+            if motor.startswith("arm_right")
         }
         left_calibration = {
-            motor.replace("left_", ""): calib
+            motor : calib
             for motor, calib in self.calibration.items()
-            if motor.startswith("left_")
+            if motor.startswith("arm_left_")
         }
 
         # Initialize right follower motors / 右腕のモーターバスの初期化
