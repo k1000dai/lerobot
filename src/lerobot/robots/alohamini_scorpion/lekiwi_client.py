@@ -310,15 +310,19 @@ class LeKiwiClient(Robot):
 
         if is_pressed and not was_pressed:
             self._key_press_start[key] = now
-            return
-
-        if not is_pressed and was_pressed:
+        elif not is_pressed and was_pressed:
             pressed_duration = now - self._key_press_start.get(key, now)
             if pressed_duration <= self.tap_toggle_threshold_s:
                 self._dual_key_reverse[key] = not self._dual_key_reverse.get(key, False)
             self._key_press_start.pop(key, None)
 
         self._key_is_pressed[key] = is_pressed
+
+    def _is_long_press(self, key: str) -> bool:
+        start_time = self._key_press_start.get(key)
+        if start_time is None:
+            return False
+        return time.monotonic() - start_time >= self.tap_toggle_threshold_s
 
     def _from_keyboard_to_base_action(self, pressed_keys: np.ndarray):
         pressed_key_set = set(pressed_keys)
@@ -343,7 +347,7 @@ class LeKiwiClient(Robot):
 
         if forward_key == backward_key:
             self._update_dual_key_toggle(pressed_key_set, forward_key)
-            if forward_key in pressed_key_set:
+            if forward_key in pressed_key_set and self._is_long_press(forward_key):
                 if self._dual_key_reverse.get(forward_key, False):
                     x_cmd -= xy_speed
                 else:
@@ -356,7 +360,7 @@ class LeKiwiClient(Robot):
 
         if left_key == right_key:
             self._update_dual_key_toggle(pressed_key_set, right_key)
-            if right_key in pressed_key_set:
+            if right_key in pressed_key_set and self._is_long_press(right_key):
                 if self._dual_key_reverse.get(right_key, False):
                     y_cmd += xy_speed
                 else:
@@ -371,7 +375,7 @@ class LeKiwiClient(Robot):
         rotate_right_key = self.teleop_keys["rotate_right"]
         if rotate_left_key == rotate_right_key:
             self._update_dual_key_toggle(pressed_key_set, rotate_left_key)
-            if rotate_left_key in pressed_key_set:
+            if rotate_left_key in pressed_key_set and self._is_long_press(rotate_left_key):
                 if self._dual_key_reverse.get(rotate_left_key, False):
                     theta_cmd += theta_speed
                 else:
@@ -416,7 +420,7 @@ class LeKiwiClient(Robot):
 
         if lift_up_key == lift_down_key:
             self._update_dual_key_toggle(pressed_key_set, lift_up_key)
-            if not up_pressed:
+            if not up_pressed or not self._is_long_press(lift_up_key):
                 return {"lift_axis.height_mm": h_now}
 
             if self._dual_key_reverse.get(lift_up_key, False):
