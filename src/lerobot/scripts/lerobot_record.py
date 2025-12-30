@@ -105,6 +105,7 @@ from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
     TeleoperatorConfig,
     bi_so100_leader,
+    dual_scorpion_leader,
     homunculus,
     koch_leader,
     make_teleoperator_from_config,
@@ -277,6 +278,8 @@ def record_loop(
                         | so101_leader.SO101Leader
                         | koch_leader.KochLeader
                         | omx_leader.OmxLeader
+                        | bi_so100_leader.BiSO100Leader
+                        | dual_scorpion_leader.DualScorpionLeader
                     ),
                 )
             ),
@@ -335,7 +338,10 @@ def record_loop(
 
         elif policy is None and isinstance(teleop, list):
             arm_action = teleop_arm.get_action()
-            arm_action = {f"arm_{k}": v for k, v in arm_action.items()}
+            if arm_action and all(key.startswith("arm_") for key in arm_action):
+                arm_action = arm_action
+            else:
+                arm_action = {f"arm_{k}": v for k, v in arm_action.items()}
             keyboard_action = teleop_keyboard.get_action()
             base_action = robot._from_keyboard_to_base_action(keyboard_action)
             act = {**arm_action, **base_action} if len(base_action) > 0 else arm_action
