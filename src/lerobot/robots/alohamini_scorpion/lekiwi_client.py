@@ -33,9 +33,10 @@ from .config_lekiwi import LeKiwiClientConfig
 from .lift_axis import LiftAxisConfig
 
 logging.basicConfig(
-    #level=logging.INFO,  
+    # level=logging.INFO,
     format="[%(filename)s:%(lineno)d] %(message)s"
 )
+
 
 class LeKiwiClient(Robot):
     config_class = LeKiwiClientConfig
@@ -69,9 +70,9 @@ class LeKiwiClient(Robot):
 
         # Define three speed levels and a current index
         self.speed_levels = [
-            {"xy": 0.15, "theta": 45},  # slow
-            {"xy": 0.2, "theta": 60},  # medium
-            {"xy": 0.25, "theta": 75},  # fast
+            {"xy": 0.05, "theta": 30},  # slow
+            {"xy": 0.1, "theta": 45},  # medium
+            {"xy": 0.15, "theta": 60},  # fast
         ]
         self.speed_index = 0  # Start at slow
         self.tap_toggle_threshold_s = 0.25
@@ -105,8 +106,8 @@ class LeKiwiClient(Robot):
                 "x.vel",
                 "y.vel",
                 "theta.vel",
-                "lift_axis.height_mm",   
-                #"lift_axis.vel",         
+                "lift_axis.height_mm",
+                # "lift_axis.vel",
             ),
             float,
         )
@@ -228,11 +229,11 @@ class LeKiwiClient(Robot):
         state_vec = np.array([flat_state[key] for key in self._state_order], dtype=np.float32)
 
         obs_dict: dict[str, Any] = {**flat_state, "observation.state": state_vec}
-        #lineno = frame.f_lineno
-        #print(f"[{filename}:{lineno}] obs_dict:{obs_dict}")
-        #print(f"[{filename}:{frame.f_lineno}] obs_dict:{obs_dict}")
-        
-        #logging.warning("obs_dict: %s", obs_dict)
+        # lineno = frame.f_lineno
+        # print(f"[{filename}:{lineno}] obs_dict:{obs_dict}")
+        # print(f"[{filename}:{frame.f_lineno}] obs_dict:{obs_dict}")
+
+        # logging.warning("obs_dict: %s", obs_dict)
 
         # Decode images
         current_frames: dict[str, np.ndarray] = {}
@@ -264,8 +265,6 @@ class LeKiwiClient(Robot):
         # 3. Parse the JSON message
         observation = self._parse_observation_json(latest_message_str)
 
-        
-
         # 4. If JSON parsing failed, return cached data
         if observation is None:
             return self.last_frames, self.last_remote_state
@@ -289,7 +288,9 @@ class LeKiwiClient(Robot):
         and a camera frame. Receives over ZMQ, translate to body-frame vel
         """
         if not self._is_connected:
-            raise DeviceNotConnectedError("AlohaMiniClient is not connected. You need to run `robot.connect()`.")
+            raise DeviceNotConnectedError(
+                "AlohaMiniClient is not connected. You need to run `robot.connect()`."
+            )
 
         frames, obs_dict = self._get_data()
 
@@ -299,7 +300,6 @@ class LeKiwiClient(Robot):
                 logging.warning("Frame is None")
                 frame = np.zeros((640, 480, 3), dtype=np.uint8)
             obs_dict[cam_name] = frame
-
 
         return obs_dict
 
@@ -382,13 +382,12 @@ class LeKiwiClient(Robot):
             if rotate_right_key in pressed_key_set:
                 theta_cmd -= theta_speed
 
-
         return {
             "x.vel": x_cmd,
             "y.vel": y_cmd,
             "theta.vel": theta_cmd,
         }
-    
+
     # lift_axis.vel
     # def _from_keyboard_to_lift_action(self, pressed_keys: np.ndarray):
     #     LIFT_VEL = 1000  # 觉得慢/快就改
@@ -402,7 +401,6 @@ class LeKiwiClient(Robot):
     #     else:
     #         v = 0.0
     #     return {"lift_axis.vel": int(v)}
-    
 
     # lift_axis.height_mm
     def _from_keyboard_to_lift_action(self, pressed_keys: np.ndarray):
@@ -414,7 +412,7 @@ class LeKiwiClient(Robot):
 
         # Read the last height (mm) reported by the Host
         h_now = float(self.last_remote_state.get("lift_axis.height_mm", 0.0))
-        #print(f"h_now:{h_now}")
+        # print(f"h_now:{h_now}")
 
         if lift_up_key == lift_down_key:
             self._update_dual_key_toggle(pressed_key_set, lift_up_key)
@@ -436,13 +434,10 @@ class LeKiwiClient(Robot):
                 h_target = h_now - LiftAxisConfig.step_mm
             else:
                 h_target = h_now
-        #print(f"h_target:{h_target}")
+        # print(f"h_target:{h_target}")
 
         # Send "target height (mm)" directly
         return {"lift_axis.height_mm": h_target}
-
-
-
 
     def configure(self):
         pass
