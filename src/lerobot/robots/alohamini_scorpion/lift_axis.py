@@ -59,7 +59,9 @@ class LiftAxis:
 
         # Multi-turn tick tracking
         self._last_tick: float = 0.0
-        self._extended_ticks: float = 0.0  # 连续累计
+        #self._extended_ticks: float = 0.0  # 连续累计
+        # set extended_ticks to max height at set_height_target_mm
+        self._extended_ticks: float = (cfg.soft_max_mm / self._mm_per_deg) * (1.0 / cfg.dir_sign)
         # Zero reference (extended angle)
         self._z0_deg: float = 0.0
 
