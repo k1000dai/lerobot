@@ -20,6 +20,7 @@ import json
 import logging
 from functools import cached_property
 import os
+import time
 from typing import Any
 
 import cv2
@@ -32,9 +33,10 @@ from .config_lekiwi import LeKiwiClientConfig
 from .lift_axis import LiftAxisConfig
 
 logging.basicConfig(
-    #level=logging.INFO,  
+    # level=logging.INFO,
     format="[%(filename)s:%(lineno)d] %(message)s"
 )
+
 
 class LeKiwiClient(Robot):
     config_class = LeKiwiClientConfig
@@ -68,11 +70,15 @@ class LeKiwiClient(Robot):
 
         # Define three speed levels and a current index
         self.speed_levels = [
-            {"xy": 0.15, "theta": 45},  # slow
-            {"xy": 0.2, "theta": 60},  # medium
-            {"xy": 0.25, "theta": 75},  # fast
+            {"xy": 0.05, "theta": 30},  # slow
+            {"xy": 0.1, "theta": 45},  # medium
+            {"xy": 0.15, "theta": 60},  # fast
         ]
         self.speed_index = 0  # Start at slow
+        self.tap_toggle_threshold_s = 0.25
+        self._key_press_start = {}
+        self._dual_key_reverse = {}
+        self._key_is_pressed = {}
 
         self._is_connected = False
         self.logs = {}
@@ -100,8 +106,8 @@ class LeKiwiClient(Robot):
                 "x.vel",
                 "y.vel",
                 "theta.vel",
-                "lift_axis.height_mm",   
-                #"lift_axis.vel",         
+                "lift_axis.height_mm",
+                # "lift_axis.vel",
             ),
             float,
         )
@@ -223,11 +229,11 @@ class LeKiwiClient(Robot):
         state_vec = np.array([flat_state[key] for key in self._state_order], dtype=np.float32)
 
         obs_dict: dict[str, Any] = {**flat_state, "observation.state": state_vec}
-        #lineno = frame.f_lineno
-        #print(f"[{filename}:{lineno}] obs_dict:{obs_dict}")
-        #print(f"[{filename}:{frame.f_lineno}] obs_dict:{obs_dict}")
-        
-        #logging.warning("obs_dict: %s", obs_dict)
+        # lineno = frame.f_lineno
+        # print(f"[{filename}:{lineno}] obs_dict:{obs_dict}")
+        # print(f"[{filename}:{frame.f_lineno}] obs_dict:{obs_dict}")
+
+        # logging.warning("obs_dict: %s", obs_dict)
 
         # Decode images
         current_frames: dict[str, np.ndarray] = {}
@@ -259,8 +265,6 @@ class LeKiwiClient(Robot):
         # 3. Parse the JSON message
         observation = self._parse_observation_json(latest_message_str)
 
-        
-
         # 4. If JSON parsing failed, return cached data
         if observation is None:
             return self.last_frames, self.last_remote_state
@@ -284,7 +288,9 @@ class LeKiwiClient(Robot):
         and a camera frame. Receives over ZMQ, translate to body-frame vel
         """
         if not self._is_connected:
-            raise DeviceNotConnectedError("AlohaMiniClient is not connected. You need to run `robot.connect()`.")
+            raise DeviceNotConnectedError(
+                "AlohaMiniClient is not connected. You need to run `robot.connect()`."
+            )
 
         frames, obs_dict = self._get_data()
 
@@ -295,14 +301,36 @@ class LeKiwiClient(Robot):
                 frame = np.zeros((640, 480, 3), dtype=np.uint8)
             obs_dict[cam_name] = frame
 
-
         return obs_dict
 
+    def _update_dual_key_toggle(self, pressed_keys: set[str], key: str) -> None:
+        now = time.monotonic()
+        was_pressed = self._key_is_pressed.get(key, False)
+        is_pressed = key in pressed_keys
+
+        if is_pressed and not was_pressed:
+            self._key_press_start[key] = now
+        elif not is_pressed and was_pressed:
+            pressed_duration = now - self._key_press_start.get(key, now)
+            if pressed_duration <= self.tap_toggle_threshold_s:
+                self._dual_key_reverse[key] = not self._dual_key_reverse.get(key, False)
+            self._key_press_start.pop(key, None)
+
+        self._key_is_pressed[key] = is_pressed
+
+    def _is_long_press(self, key: str) -> bool:
+        start_time = self._key_press_start.get(key)
+        if start_time is None:
+            return False
+        return time.monotonic() - start_time >= self.tap_toggle_threshold_s
+
     def _from_keyboard_to_base_action(self, pressed_keys: np.ndarray):
+        pressed_key_set = set(pressed_keys)
+
         # Speed control
-        if self.teleop_keys["speed_up"] in pressed_keys:
+        if self.teleop_keys["speed_up"] in pressed_key_set:
             self.speed_index = min(self.speed_index + 1, 2)
-        if self.teleop_keys["speed_down"] in pressed_keys:
+        if self.teleop_keys["speed_down"] in pressed_key_set:
             self.speed_index = max(self.speed_index - 1, 0)
         speed_setting = self.speed_levels[self.speed_index]
         xy_speed = speed_setting["xy"]  # e.g. 0.1, 0.25, or 0.4
@@ -312,26 +340,58 @@ class LeKiwiClient(Robot):
         y_cmd = 0.0  # m/s lateral
         theta_cmd = 0.0  # deg/s rotation
 
-        if self.teleop_keys["forward"] in pressed_keys:
-            x_cmd += xy_speed
-        if self.teleop_keys["backward"] in pressed_keys:
-            x_cmd -= xy_speed
-        if self.teleop_keys["left"] in pressed_keys:
-            y_cmd += xy_speed
-        if self.teleop_keys["right"] in pressed_keys:
-            y_cmd -= xy_speed
-        if self.teleop_keys["rotate_left"] in pressed_keys:
-            theta_cmd += theta_speed
-        if self.teleop_keys["rotate_right"] in pressed_keys:
-            theta_cmd -= theta_speed
+        forward_key = self.teleop_keys["forward"]
+        backward_key = self.teleop_keys["backward"]
+        left_key = self.teleop_keys["left"]
+        right_key = self.teleop_keys["right"]
 
+        if forward_key == backward_key:
+            self._update_dual_key_toggle(pressed_key_set, forward_key)
+            if forward_key in pressed_key_set and self._is_long_press(forward_key):
+                if self._dual_key_reverse.get(forward_key, False):
+                    x_cmd -= xy_speed
+                else:
+                    x_cmd += xy_speed
+        else:
+            if forward_key in pressed_key_set:
+                x_cmd += xy_speed
+            if backward_key in pressed_key_set:
+                x_cmd -= xy_speed
+
+        if left_key == right_key:
+            self._update_dual_key_toggle(pressed_key_set, right_key)
+            if right_key in pressed_key_set and self._is_long_press(right_key):
+                if self._dual_key_reverse.get(right_key, False):
+                    y_cmd += xy_speed
+                else:
+                    y_cmd -= xy_speed
+        else:
+            if left_key in pressed_key_set:
+                y_cmd += xy_speed
+            if right_key in pressed_key_set:
+                y_cmd -= xy_speed
+
+        rotate_left_key = self.teleop_keys["rotate_left"]
+        rotate_right_key = self.teleop_keys["rotate_right"]
+        if rotate_left_key == rotate_right_key:
+            self._update_dual_key_toggle(pressed_key_set, rotate_left_key)
+            if rotate_left_key in pressed_key_set and self._is_long_press(rotate_left_key):
+                if self._dual_key_reverse.get(rotate_left_key, False):
+                    theta_cmd += theta_speed
+                else:
+                    theta_cmd -= theta_speed
+        else:
+            if rotate_left_key in pressed_key_set:
+                theta_cmd += theta_speed
+            if rotate_right_key in pressed_key_set:
+                theta_cmd -= theta_speed
 
         return {
             "x.vel": x_cmd,
             "y.vel": y_cmd,
             "theta.vel": theta_cmd,
         }
-    
+
     # lift_axis.vel
     # def _from_keyboard_to_lift_action(self, pressed_keys: np.ndarray):
     #     LIFT_VEL = 1000  # 觉得慢/快就改
@@ -345,36 +405,43 @@ class LeKiwiClient(Robot):
     #     else:
     #         v = 0.0
     #     return {"lift_axis.vel": int(v)}
-    
 
     # lift_axis.height_mm
     def _from_keyboard_to_lift_action(self, pressed_keys: np.ndarray):
-        up_pressed = self.teleop_keys.get("lift_up", "u") in pressed_keys
-        dn_pressed = self.teleop_keys.get("lift_down", "j") in pressed_keys
+        pressed_key_set = set(pressed_keys)
+        lift_up_key = self.teleop_keys.get("lift_up", "u")
+        lift_down_key = self.teleop_keys.get("lift_down", "j")
+        up_pressed = lift_up_key in pressed_key_set
+        dn_pressed = lift_down_key in pressed_key_set
 
         # Read the last height (mm) reported by the Host
         h_now = float(self.last_remote_state.get("lift_axis.height_mm", 0.0))
-        #print(f"h_now:{h_now}")
+        # print(f"h_now:{h_now}")
 
-        if not (up_pressed or dn_pressed):
-        # If neither 'u' nor 'j' is pressed, reuse the previous value to avoid empty input
-            #return {"lift_axis.height_mm": h_now}
-            return {"lift_axis.height_mm": h_now}
+        if lift_up_key == lift_down_key:
+            self._update_dual_key_toggle(pressed_key_set, lift_up_key)
+            if not up_pressed or not self._is_long_press(lift_up_key):
+                return {"lift_axis.height_mm": h_now}
 
-        # Increment on each key press
-        if up_pressed and not dn_pressed:
-            h_target = h_now + LiftAxisConfig.step_mm
-        elif dn_pressed and not up_pressed:
-            h_target = h_now - LiftAxisConfig.step_mm
+            if self._dual_key_reverse.get(lift_up_key, False):
+                h_target = h_now - LiftAxisConfig.step_mm
+            else:
+                h_target = h_now + LiftAxisConfig.step_mm
         else:
-            h_target = h_now
-        #print(f"h_target:{h_target}")
+            if not (up_pressed or dn_pressed):
+                return {"lift_axis.height_mm": h_now}
+
+            # Increment on each key press
+            if up_pressed and not dn_pressed:
+                h_target = h_now + LiftAxisConfig.step_mm
+            elif dn_pressed and not up_pressed:
+                h_target = h_now - LiftAxisConfig.step_mm
+            else:
+                h_target = h_now
+        # print(f"h_target:{h_target}")
 
         # Send "target height (mm)" directly
         return {"lift_axis.height_mm": h_target}
-
-
-
 
     def configure(self):
         pass
