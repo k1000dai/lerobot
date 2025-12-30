@@ -64,7 +64,8 @@ class LiftAxis:
         self._z0_deg: float = 0.0
 
         # Target (non-blocking)
-        self._target_mm: float = 0.0
+        #self._target_mm: float = 0.0
+        self._target_mm : float = cfg.soft_max_mm
 
         self._configured = False
 

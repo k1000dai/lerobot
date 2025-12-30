@@ -87,23 +87,40 @@ class LeKiwiClientConfig(RobotConfig):
     port_zmq_observations: int = 5556
 
     teleop_keys: dict[str, str] = field(
-        default_factory=lambda: {
-            # Movement
-            "forward": "w",
-            "backward": "s",
-            "left": "z",
-            "right": "x",
-            "rotate_left": "a",
-            "rotate_right": "d",
-            # Speed control
-            "speed_up": "r",
-            "speed_down": "f",
-            # Z 轴
-            "lift_up": "u",
-            "lift_down": "j",
-            # quit teleop
-            "quit": "q",
-        }
+       # default_factory=lambda: {
+       #     # Movement
+       #     "forward": "w",
+       #     "backward": "s",
+       #     "left": "z",
+       #     "right": "x",
+       #     "rotate_left": "a",
+       #     "rotate_right": "d",
+       #     # Speed control
+       #     "speed_up": "r",
+       #     "speed_down": "f",
+       #     # Z 轴
+       #     "lift_up": "u",
+       #     "lift_down": "j",
+       #     # quit teleop
+       #     "quit": "q",
+       # }
+       default_factory=lambda: {
+              # Movement
+              "forward": "a",
+              "backward": "b",
+              "left": "c",
+              "right": "z",
+              "rotate_left": "x",
+              "rotate_right": "w",
+              # Speed control
+              "speed_up": "r",
+              "speed_down": "f",
+              # Z axis
+              "lift_up": "u",
+              "lift_down": "j",
+              # quit teleop
+              "quit": "q",
+         }
     )
 
     cameras: dict[str, CameraConfig] = field(default_factory=lekiwi_cameras_config)
