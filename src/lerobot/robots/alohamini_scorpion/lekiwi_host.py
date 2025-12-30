@@ -23,6 +23,8 @@ import sys
 import cv2
 import zmq
 
+from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
+
 from .config_lekiwi import LeKiwiConfig, LeKiwiHostConfig
 from .lekiwi import LeKiwi
 
@@ -52,6 +54,9 @@ def main():
     logging.info("Configuring LeKiwi")
     robot_config = LeKiwiConfig()
     robot_config.id = "AlohaMiniRobot"
+    for cam_config in robot_config.cameras.values():
+        if isinstance(cam_config, OpenCVCameraConfig):
+            cam_config.fourcc = "MJPG"
     robot = LeKiwi(robot_config)
 
     logging.info("Connecting AlohaMini")
