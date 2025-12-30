@@ -91,7 +91,7 @@ class LiftAxis:
         self._bus.write("Operating_Mode", self.cfg.name, OperatingMode.VELOCITY.value)
         self._last_tick = float(self._bus.read("Present_Position", self.cfg.name, normalize=False))
         # set extended_ticks to max height at set_height_target_mm
-        soft_max_ticks = (self.cfg.soft_max_mm / self._mm_per_deg) * (1.0 / self.cfg.dir_sign)
+        soft_max_ticks = ((self.cfg.soft_max_mm / self._mm_per_deg) - self._z0_deg)/self._deg_per_tick/self.cfg.dir_sign
         self._extended_ticks = soft_max_ticks
         self._configured = True
 
