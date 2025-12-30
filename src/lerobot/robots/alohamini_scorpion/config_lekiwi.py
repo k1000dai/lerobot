@@ -89,10 +89,10 @@ class LeKiwiClientConfig(RobotConfig):
     teleop_keys: dict[str, str] = field(
         default_factory=lambda: {
             # Movement
-            "forward": "w",
-            "backward": "s",
-            "left": "z",
-            "right": "x",
+            "forward": "b",
+            "backward": "b",
+            "left": "c",
+            "right": "c",
             "rotate_left": "a",
             "rotate_right": "d",
             # Speed control
@@ -110,4 +110,3 @@ class LeKiwiClientConfig(RobotConfig):
 
     polling_timeout_ms: int = 15
     connect_timeout_s: int = 5
-

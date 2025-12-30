@@ -20,6 +20,7 @@ import json
 import logging
 from functools import cached_property
 import os
+import time
 from typing import Any
 
 import cv2
@@ -73,6 +74,10 @@ class LeKiwiClient(Robot):
             {"xy": 0.25, "theta": 75},  # fast
         ]
         self.speed_index = 0  # Start at slow
+        self.tap_toggle_threshold_s = 0.25
+        self._key_press_start = {}
+        self._dual_key_reverse = {}
+        self._prev_pressed_keys = set()
 
         self._is_connected = False
         self.logs = {}
@@ -298,11 +303,28 @@ class LeKiwiClient(Robot):
 
         return obs_dict
 
+    def _update_dual_key_toggle(self, pressed_keys: set[str], key: str) -> None:
+        now = time.monotonic()
+        was_pressed = key in self._prev_pressed_keys
+        is_pressed = key in pressed_keys
+
+        if is_pressed and not was_pressed:
+            self._key_press_start[key] = now
+            return
+
+        if not is_pressed and was_pressed:
+            pressed_duration = now - self._key_press_start.get(key, now)
+            if pressed_duration <= self.tap_toggle_threshold_s:
+                self._dual_key_reverse[key] = not self._dual_key_reverse.get(key, False)
+            self._key_press_start.pop(key, None)
+
     def _from_keyboard_to_base_action(self, pressed_keys: np.ndarray):
+        pressed_key_set = set(pressed_keys)
+
         # Speed control
-        if self.teleop_keys["speed_up"] in pressed_keys:
+        if self.teleop_keys["speed_up"] in pressed_key_set:
             self.speed_index = min(self.speed_index + 1, 2)
-        if self.teleop_keys["speed_down"] in pressed_keys:
+        if self.teleop_keys["speed_down"] in pressed_key_set:
             self.speed_index = max(self.speed_index - 1, 0)
         speed_setting = self.speed_levels[self.speed_index]
         xy_speed = speed_setting["xy"]  # e.g. 0.1, 0.25, or 0.4
@@ -312,18 +334,43 @@ class LeKiwiClient(Robot):
         y_cmd = 0.0  # m/s lateral
         theta_cmd = 0.0  # deg/s rotation
 
-        if self.teleop_keys["forward"] in pressed_keys:
-            x_cmd += xy_speed
-        if self.teleop_keys["backward"] in pressed_keys:
-            x_cmd -= xy_speed
-        if self.teleop_keys["left"] in pressed_keys:
-            y_cmd += xy_speed
-        if self.teleop_keys["right"] in pressed_keys:
-            y_cmd -= xy_speed
-        if self.teleop_keys["rotate_left"] in pressed_keys:
+        forward_key = self.teleop_keys["forward"]
+        backward_key = self.teleop_keys["backward"]
+        left_key = self.teleop_keys["left"]
+        right_key = self.teleop_keys["right"]
+
+        if forward_key == backward_key:
+            self._update_dual_key_toggle(pressed_key_set, forward_key)
+            if forward_key in pressed_key_set:
+                if self._dual_key_reverse.get(forward_key, False):
+                    x_cmd -= xy_speed
+                else:
+                    x_cmd += xy_speed
+        else:
+            if forward_key in pressed_key_set:
+                x_cmd += xy_speed
+            if backward_key in pressed_key_set:
+                x_cmd -= xy_speed
+
+        if left_key == right_key:
+            self._update_dual_key_toggle(pressed_key_set, right_key)
+            if right_key in pressed_key_set:
+                if self._dual_key_reverse.get(right_key, False):
+                    y_cmd += xy_speed
+                else:
+                    y_cmd -= xy_speed
+        else:
+            if left_key in pressed_key_set:
+                y_cmd += xy_speed
+            if right_key in pressed_key_set:
+                y_cmd -= xy_speed
+
+        if self.teleop_keys["rotate_left"] in pressed_key_set:
             theta_cmd += theta_speed
-        if self.teleop_keys["rotate_right"] in pressed_keys:
+        if self.teleop_keys["rotate_right"] in pressed_key_set:
             theta_cmd -= theta_speed
+
+        self._prev_pressed_keys = pressed_key_set
 
 
         return {
