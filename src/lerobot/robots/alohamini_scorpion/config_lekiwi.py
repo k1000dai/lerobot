@@ -93,14 +93,14 @@ class LeKiwiClientConfig(RobotConfig):
             "backward": "b",
             "left": "c",
             "right": "c",
-            "rotate_left": "a",
-            "rotate_right": "d",
+            "rotate_left": "C",
+            "rotate_right": "C",
             # Speed control
             "speed_up": "r",
             "speed_down": "f",
             # Z 轴
-            "lift_up": "u",
-            "lift_down": "j",
+            "lift_up": "B",
+            "lift_down": "B",
             # quit teleop
             "quit": "q",
         }

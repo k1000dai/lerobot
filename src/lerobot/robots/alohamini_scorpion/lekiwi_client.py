@@ -77,7 +77,7 @@ class LeKiwiClient(Robot):
         self.tap_toggle_threshold_s = 0.25
         self._key_press_start = {}
         self._dual_key_reverse = {}
-        self._prev_pressed_keys = set()
+        self._key_is_pressed = {}
 
         self._is_connected = False
         self.logs = {}
@@ -305,7 +305,7 @@ class LeKiwiClient(Robot):
 
     def _update_dual_key_toggle(self, pressed_keys: set[str], key: str) -> None:
         now = time.monotonic()
-        was_pressed = key in self._prev_pressed_keys
+        was_pressed = self._key_is_pressed.get(key, False)
         is_pressed = key in pressed_keys
 
         if is_pressed and not was_pressed:
@@ -317,6 +317,8 @@ class LeKiwiClient(Robot):
             if pressed_duration <= self.tap_toggle_threshold_s:
                 self._dual_key_reverse[key] = not self._dual_key_reverse.get(key, False)
             self._key_press_start.pop(key, None)
+
+        self._key_is_pressed[key] = is_pressed
 
     def _from_keyboard_to_base_action(self, pressed_keys: np.ndarray):
         pressed_key_set = set(pressed_keys)
@@ -365,12 +367,20 @@ class LeKiwiClient(Robot):
             if right_key in pressed_key_set:
                 y_cmd -= xy_speed
 
-        if self.teleop_keys["rotate_left"] in pressed_key_set:
-            theta_cmd += theta_speed
-        if self.teleop_keys["rotate_right"] in pressed_key_set:
-            theta_cmd -= theta_speed
-
-        self._prev_pressed_keys = pressed_key_set
+        rotate_left_key = self.teleop_keys["rotate_left"]
+        rotate_right_key = self.teleop_keys["rotate_right"]
+        if rotate_left_key == rotate_right_key:
+            self._update_dual_key_toggle(pressed_key_set, rotate_left_key)
+            if rotate_left_key in pressed_key_set:
+                if self._dual_key_reverse.get(rotate_left_key, False):
+                    theta_cmd += theta_speed
+                else:
+                    theta_cmd -= theta_speed
+        else:
+            if rotate_left_key in pressed_key_set:
+                theta_cmd += theta_speed
+            if rotate_right_key in pressed_key_set:
+                theta_cmd -= theta_speed
 
 
         return {
@@ -396,25 +406,36 @@ class LeKiwiClient(Robot):
 
     # lift_axis.height_mm
     def _from_keyboard_to_lift_action(self, pressed_keys: np.ndarray):
-        up_pressed = self.teleop_keys.get("lift_up", "u") in pressed_keys
-        dn_pressed = self.teleop_keys.get("lift_down", "j") in pressed_keys
+        pressed_key_set = set(pressed_keys)
+        lift_up_key = self.teleop_keys.get("lift_up", "u")
+        lift_down_key = self.teleop_keys.get("lift_down", "j")
+        up_pressed = lift_up_key in pressed_key_set
+        dn_pressed = lift_down_key in pressed_key_set
 
         # Read the last height (mm) reported by the Host
         h_now = float(self.last_remote_state.get("lift_axis.height_mm", 0.0))
         #print(f"h_now:{h_now}")
 
-        if not (up_pressed or dn_pressed):
-        # If neither 'u' nor 'j' is pressed, reuse the previous value to avoid empty input
-            #return {"lift_axis.height_mm": h_now}
-            return {"lift_axis.height_mm": h_now}
+        if lift_up_key == lift_down_key:
+            self._update_dual_key_toggle(pressed_key_set, lift_up_key)
+            if not up_pressed:
+                return {"lift_axis.height_mm": h_now}
 
-        # Increment on each key press
-        if up_pressed and not dn_pressed:
-            h_target = h_now + LiftAxisConfig.step_mm
-        elif dn_pressed and not up_pressed:
-            h_target = h_now - LiftAxisConfig.step_mm
+            if self._dual_key_reverse.get(lift_up_key, False):
+                h_target = h_now - LiftAxisConfig.step_mm
+            else:
+                h_target = h_now + LiftAxisConfig.step_mm
         else:
-            h_target = h_now
+            if not (up_pressed or dn_pressed):
+                return {"lift_axis.height_mm": h_now}
+
+            # Increment on each key press
+            if up_pressed and not dn_pressed:
+                h_target = h_now + LiftAxisConfig.step_mm
+            elif dn_pressed and not up_pressed:
+                h_target = h_now - LiftAxisConfig.step_mm
+            else:
+                h_target = h_now
         #print(f"h_target:{h_target}")
 
         # Send "target height (mm)" directly
