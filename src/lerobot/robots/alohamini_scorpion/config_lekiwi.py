@@ -21,51 +21,28 @@ from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 from ..config import RobotConfig
 
 
-def lekiwi_cameras_config(enable: bool | None = None) -> dict[str, CameraConfig]:
-    if enable is None:
-        env_value = os.getenv("LEROBOT_ALOHAMINI_CAMERAS", "")
-        enable = env_value.strip().lower() in {"1", "true", "yes", "on"}
+def lekiwi_cameras_config() -> dict[str, CameraConfig]:
+    camera_specs = [
+        ("head_top", "/dev/am_camera_head_top", Cv2Rotation.NO_ROTATION),
+        ("head_back", "/dev/am_camera_head_back", Cv2Rotation.NO_ROTATION),
+        ("head_front", "/dev/am_camera_head_front", Cv2Rotation.NO_ROTATION),
+        ("wrist_left", "/dev/am_camera_wrist_left", Cv2Rotation.NO_ROTATION),
+        ("wrist_right", "/dev/am_camera_wrist_right", Cv2Rotation.NO_ROTATION),
+    ]
 
-    if not enable:
-        return {}
+    cameras: dict[str, CameraConfig] = {}
+    for name, device_path, rotation in camera_specs:
+        if not os.path.exists(device_path):
+            continue
+        cameras[name] = OpenCVCameraConfig(
+            index_or_path=device_path,
+            fps=30,
+            width=640,
+            height=480,
+            rotation=rotation,
+        )
 
-    return {
-        "head_top": OpenCVCameraConfig(
-            index_or_path="/dev/am_camera_head_top",
-            fps=30,
-            width=640,
-            height=480,
-            rotation=Cv2Rotation.NO_ROTATION,
-        ),
-        "head_back": OpenCVCameraConfig(
-            index_or_path="/dev/am_camera_head_back",
-            fps=30,
-            width=640,
-            height=480,
-            rotation=Cv2Rotation.NO_ROTATION,
-        ),
-        "head_front": OpenCVCameraConfig(
-            index_or_path="/dev/am_camera_head_front",
-            fps=30,
-            width=640,
-            height=480,
-            rotation=Cv2Rotation.NO_ROTATION,
-        ),
-        "wrist_left": OpenCVCameraConfig(
-            index_or_path="/dev/am_camera_wrist_left",
-            fps=30,
-            width=640,
-            height=480,
-            rotation=Cv2Rotation.NO_ROTATION,
-        ),
-        "wrist_right": OpenCVCameraConfig(
-            index_or_path="/dev/am_camera_wrist_right",
-            fps=30,
-            width=640,
-            height=480,
-            rotation=Cv2Rotation.NO_ROTATION,
-        ),
-    }
+    return cameras
 
 
 @RobotConfig.register_subclass("lekiwi")

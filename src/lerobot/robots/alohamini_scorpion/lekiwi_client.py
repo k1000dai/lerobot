@@ -26,6 +26,7 @@ from typing import Any
 import cv2
 import numpy as np
 
+from lerobot.cameras.configs import CameraConfig
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
 from ..robot import Robot
@@ -237,14 +238,31 @@ class LeKiwiClient(Robot):
 
         # Decode images
         current_frames: dict[str, np.ndarray] = {}
+        camera_names = set(self.config.cameras.keys()) if self.config.cameras else None
         for cam_name, image_b64 in observation.items():
-            if cam_name not in self._cameras_ft:
+            if cam_name in self._state_order:
+                continue
+            if camera_names is not None and cam_name not in camera_names:
+                continue
+            if not isinstance(image_b64, str):
                 continue
             frame = self._decode_image_from_b64(image_b64)
             if frame is not None:
                 current_frames[cam_name] = frame
 
+        self._maybe_update_camera_config(current_frames)
+
         return current_frames, obs_dict
+
+    def _maybe_update_camera_config(self, frames: dict[str, np.ndarray]) -> None:
+        if self.config.cameras or not frames:
+            return
+
+        self.config.cameras = {
+            name: CameraConfig(width=frame.shape[1], height=frame.shape[0]) for name, frame in frames.items()
+        }
+        self.__dict__.pop("_cameras_ft", None)
+        self.__dict__.pop("observation_features", None)
 
     def _get_data(self) -> tuple[dict[str, np.ndarray], dict[str, Any], dict[str, Any]]:
         """

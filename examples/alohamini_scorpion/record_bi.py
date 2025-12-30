@@ -3,7 +3,7 @@
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.datasets.utils import hw_to_dataset_features
 from lerobot.processor import make_default_processors
-from lerobot.robots.alohamini_scorpion.config_lekiwi import LeKiwiClientConfig, lekiwi_cameras_config
+from lerobot.robots.alohamini_scorpion.config_lekiwi import LeKiwiClientConfig
 from lerobot.robots.alohamini_scorpion.lekiwi_client import LeKiwiClient
 from lerobot.scripts.lerobot_record import record_loop
 from lerobot.teleoperators.keyboard import KeyboardTeleop, KeyboardTeleopConfig
@@ -34,18 +34,11 @@ def main():
     parser.add_argument("--remote_ip", type=str, default="127.0.0.1", help="Robot host IP")
     parser.add_argument("--robot_id", type=str, default="lekiwi_host", help="Robot ID")
     parser.add_argument("--leader_id", type=str, default="so101_leader_bi", help="Leader arm device ID")
-    parser.add_argument(
-        "--enable_cameras",
-        action="store_true",
-        help="Enable camera recording (requires cameras enabled on the host)",
-    )
 
     args = parser.parse_args()
 
     # === Robot and teleop config ===
     robot_config = LeKiwiClientConfig(remote_ip=args.remote_ip, id=args.robot_id)
-    if args.enable_cameras:
-        robot_config.cameras = lekiwi_cameras_config(enable=True)
 
     dual_scorpion_config = DualScorpionLeaderConfig(
         right_arm_port="/dev/am_arm_leader_right",
@@ -58,6 +51,19 @@ def main():
 
     robot = LeKiwiClient(robot_config)
     keyboard = KeyboardTeleop(keyboard_config)
+
+    # === Connect devices ===
+    robot.connect()
+    leader_arm.connect()
+    keyboard.connect()
+
+    listener, events = init_keyboard_listener()
+    init_rerun(session_name="lekiwi_record")
+
+    if not robot.is_connected or not leader_arm.is_connected or not keyboard.is_connected:
+        raise ValueError("Robot or teleop is not connected!")
+
+    robot.get_observation()
 
     teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
 
@@ -75,17 +81,6 @@ def main():
         image_writer_threads=4,
     )
     print(f"Dataset created with id: {dataset.repo_id}")
-
-    # === Connect devices ===
-    robot.connect()
-    leader_arm.connect()
-    keyboard.connect()
-
-    listener, events = init_keyboard_listener()
-    init_rerun(session_name="lekiwi_record")
-
-    if not robot.is_connected or not leader_arm.is_connected or not keyboard.is_connected:
-        raise ValueError("Robot or teleop is not connected!")
 
     print("Starting record loop...")
     recorded_episodes = 0
