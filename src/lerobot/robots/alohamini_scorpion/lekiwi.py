@@ -507,7 +507,7 @@ class LeKiwi(Robot):
         logger.debug(f"{self} read state: {dt_ms:.1f}ms")
 
         # currents protection
-        self.read_and_check_currents(limit_ma=4000, print_currents=True)
+        self.read_and_check_currents(limit_ma=3000, print_currents=True)
 
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():
@@ -607,16 +607,17 @@ class LeKiwi(Robot):
         for name, raw in {**left_curr_raw, **right_curr_raw}.items():
             current_ma = float(raw) * scale
             if current_ma > limit_ma:
-                print(f"[Overcurrent] {name}: {current_ma:.1f} mA > {limit_ma:.1f} mA, disconnecting!")
+                logger.warning(
+                    "[Overcurrent] %s: %.1f mA > %.1f mA, disconnecting!",
+                    name,
+                    current_ma,
+                    limit_ma,
+                )
+                print(f"[Overcurrent] {name}: {current_ma:.1f} mA > {limit_ma:.1f} mA, stop base!")
                 try:
                     self.stop_base()
                 except Exception:
                     pass
-                try:
-                    self.disconnect()
-                except Exception as e:
-                    print(f"[Overcurrent] disconnect error: {e}")
-                sys.exit(1)
 
         return {k: round(v * scale, 1) for k, v in {**left_curr_raw, **right_curr_raw}.items()}
 
