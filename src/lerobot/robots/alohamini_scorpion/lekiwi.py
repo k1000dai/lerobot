@@ -507,7 +507,7 @@ class LeKiwi(Robot):
         logger.debug(f"{self} read state: {dt_ms:.1f}ms")
 
         # currents protection
-        self.read_and_check_currents(limit_ma=2000, print_currents=True)
+        self.read_and_check_currents(limit_ma=4000, print_currents=True)
 
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():
