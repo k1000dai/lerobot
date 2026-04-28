@@ -27,6 +27,10 @@ DEVICE=cuda make test-end-to-end                      # All E2E tests
 pre-commit run --all-files                           # Lint + format (ruff, typos, bandit, etc.)
 ```
 
+## GitHub Notes
+
+- Issues are disabled on the `k1000dai/lerobot` fork. If a finding needs to be recorded on GitHub, use an existing PR comment when available or ask for Issues to be enabled.
+
 ## Architecture (`src/lerobot/`)
 
 - **`scripts/`** — CLI entry points (`lerobot-train`, `lerobot-eval`, `lerobot-record`, etc.), mapped in `pyproject.toml [project.scripts]`.

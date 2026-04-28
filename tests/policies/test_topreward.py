@@ -25,6 +25,22 @@ from lerobot.policies.factory import get_policy_class, make_policy_config
 from lerobot.policies.topreward.configuration_topreward import TOPRewardConfig
 from lerobot.policies.topreward.modeling_topreward import TOPRewardModel, TOPRewardOutput
 
+# The LIBERO application script depends on the `dataset` and `pyarrow` extras —
+# import lazily so this test module still loads in the base environment.
+try:
+    from lerobot.policies.topreward import compute_topreward_progress as ctp
+    import pyarrow.parquet as pq
+
+    _LIBERO_DEPS_AVAILABLE = True
+except ImportError:
+    ctp = None
+    pq = None
+    _LIBERO_DEPS_AVAILABLE = False
+
+requires_libero_extras = pytest.mark.skipif(
+    not _LIBERO_DEPS_AVAILABLE, reason="lerobot[dataset] + pyarrow required"
+)
+
 
 def test_topreward_extra_installs_accelerate_for_device_map_loading():
     with open("pyproject.toml", "rb") as f:
@@ -119,3 +135,153 @@ def test_calculate_rewards_for_prefixes_normalizes_progress(monkeypatch):
     )
 
     assert rewards.tolist() == [0.0, 0.5, 1.0]
+
+
+@requires_libero_extras
+def test_to_uint8_image_handles_chw_float_tensor():
+    chw = torch.zeros((3, 4, 5), dtype=torch.float32)
+    chw[0, 0, 0] = 1.0  # red pixel @ (0,0)
+    out = ctp._to_uint8_image(chw)
+    assert out.shape == (4, 5, 3)
+    assert out.dtype == np.uint8
+    assert out[0, 0, 0] == 255
+
+
+@requires_libero_extras
+def test_interpolate_to_frames_linear():
+    out = ctp._interpolate_to_frames(np.array([1, 5]), np.array([0.0, 1.0]), 5)
+    assert out.tolist() == pytest.approx([0.0, 0.25, 0.5, 0.75, 1.0])
+
+
+@requires_libero_extras
+def test_compute_topreward_progress_writes_parquet(tmp_path, monkeypatch):
+    """End-to-end glue test with a fake dataset and a fake VLM."""
+
+    class FakeMeta:
+        episodes = [
+            {"dataset_from_index": 0, "dataset_to_index": 4},
+            {"dataset_from_index": 4, "dataset_to_index": 6},
+        ]
+
+    class FakeDataset:
+        num_episodes = 2
+        num_frames = 6
+
+        def __init__(self):
+            self.meta = FakeMeta()
+            self.root = tmp_path
+
+        def __getitem__(self, idx):
+            return {
+                "observation.images.image": np.zeros((4, 4, 3), dtype=np.uint8),
+                "task": "open the drawer" if idx < 4 else "close the drawer",
+            }
+
+    captured = {"calls": []}
+
+    def fake_compute(self, frames, instruction, **kwargs):  # noqa: ARG001
+        captured["calls"].append((len(frames), instruction))
+        return TOPRewardOutput(reward=float(len(frames)), reduction="mean", token_count=1)
+
+    monkeypatch.setattr(ctp, "LeRobotDataset", lambda *a, **kw: FakeDataset())
+    monkeypatch.setattr(ctp.TOPRewardModel, "compute_instruction_reward", fake_compute)
+    monkeypatch.setattr(ctp.TOPRewardModel, "_load_qwen_backend", lambda self: None)
+
+    out_path = tmp_path / "topreward_progress.parquet"
+    ctp.compute_topreward_progress(
+        dataset_repo_id="ignored/path",
+        output_path=str(out_path),
+        num_samples=3,
+        device="cpu",
+    )
+
+    assert out_path.exists()
+    table = pq.read_table(out_path)
+    df = table.to_pandas()
+
+    # 6 frames written across 2 episodes
+    assert len(df) == 6
+    assert sorted(df["episode_index"].unique().tolist()) == [0, 1]
+    # normalize_prefix_rewards is True by default → values land in [0, 1]
+    assert df["progress_topreward"].min() >= 0.0
+    assert df["progress_topreward"].max() <= 1.0
+    # First and last frame of each episode hit the prefix endpoints
+    ep0 = df[df["episode_index"] == 0].sort_values("frame_index")
+    assert ep0["progress_topreward"].iloc[0] == pytest.approx(0.0)
+    assert ep0["progress_topreward"].iloc[-1] == pytest.approx(1.0)
+    # Each task description was forwarded to the VLM
+    instructions = {call[1] for call in captured["calls"]}
+    assert instructions == {"open the drawer", "close the drawer"}
+
+
+@requires_libero_extras
+def test_visualize_topreward_episode_writes_png(tmp_path):
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg", force=True)
+
+    frames = [np.full((6, 6, 3), i * 32, dtype=np.uint8) for i in range(8)]
+    prefix_lengths = np.array([1, 4, 8])
+    prefix_rewards = np.array([0.0, 0.5, 1.0])
+    per_frame = ctp._interpolate_to_frames(prefix_lengths, prefix_rewards, len(frames))
+
+    out_path = tmp_path / "ep.png"
+    ctp.visualize_topreward_episode(
+        frames=frames,
+        prefix_lengths=prefix_lengths,
+        prefix_rewards=prefix_rewards,
+        per_frame_rewards=per_frame,
+        task="pick up the block",
+        output_path=out_path,
+        num_thumbnails=4,
+    )
+
+    assert out_path.exists()
+    assert out_path.stat().st_size > 0
+
+
+@requires_libero_extras
+def test_compute_topreward_progress_emits_visualizations(tmp_path, monkeypatch):
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg", force=True)
+
+    class FakeMeta:
+        episodes = [
+            {"dataset_from_index": 0, "dataset_to_index": 4},
+            {"dataset_from_index": 4, "dataset_to_index": 6},
+        ]
+
+    class FakeDataset:
+        num_episodes = 2
+        num_frames = 6
+
+        def __init__(self):
+            self.meta = FakeMeta()
+            self.root = tmp_path
+
+        def __getitem__(self, idx):
+            return {
+                "observation.images.image": np.full((4, 4, 3), 128, dtype=np.uint8),
+                "task": "task A" if idx < 4 else "task B",
+            }
+
+    def fake_compute(self, frames, instruction, **kwargs):  # noqa: ARG001
+        return TOPRewardOutput(reward=float(len(frames)), reduction="mean", token_count=1)
+
+    monkeypatch.setattr(ctp, "LeRobotDataset", lambda *a, **kw: FakeDataset())
+    monkeypatch.setattr(ctp.TOPRewardModel, "compute_instruction_reward", fake_compute)
+    monkeypatch.setattr(ctp.TOPRewardModel, "_load_qwen_backend", lambda self: None)
+
+    viz_dir = tmp_path / "plots"
+    ctp.compute_topreward_progress(
+        dataset_repo_id="ignored/path",
+        output_path=str(tmp_path / "topreward_progress.parquet"),
+        num_samples=3,
+        device="cpu",
+        num_visualizations=1,
+        viz_dir=str(viz_dir),
+    )
+
+    pngs = sorted(viz_dir.glob("*.png"))
+    # Only the first processed episode should be plotted
+    assert len(pngs) == 1
+    assert pngs[0].name == "topreward_ep0000.png"
