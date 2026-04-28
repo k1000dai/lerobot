@@ -56,6 +56,7 @@ from .sac.reward_model.configuration_classifier import RewardClassifierConfig
 from .sarm.configuration_sarm import SARMConfig
 from .smolvla.configuration_smolvla import SmolVLAConfig
 from .tdmpc.configuration_tdmpc import TDMPCConfig
+from .topreward.configuration_topreward import TOPRewardConfig
 from .utils import validate_visual_features_consistency
 from .vqbet.configuration_vqbet import VQBeTConfig
 from .wall_x.configuration_wall_x import WallXConfig
@@ -89,7 +90,8 @@ def get_policy_class(name: str) -> type[PreTrainedPolicy]:
 
     Args:
         name: The name of the policy. Supported names are "tdmpc", "diffusion", "act",
-            "multi_task_dit", "vqbet", "pi0", "pi05", "sac", "reward_classifier", "smolvla", "wall_x".
+            "multi_task_dit", "vqbet", "pi0", "pi05", "sac", "reward_classifier", "sarm",
+            "topreward", "smolvla", "wall_x".
     Returns:
         The policy class corresponding to the given name.
 
@@ -144,6 +146,10 @@ def get_policy_class(name: str) -> type[PreTrainedPolicy]:
         from .sarm.modeling_sarm import SARMRewardModel
 
         return SARMRewardModel
+    elif name == "topreward":
+        from .topreward.modeling_topreward import TOPRewardModel
+
+        return TOPRewardModel
     elif name == "groot":
         from .groot.modeling_groot import GrootPolicy
 
@@ -173,7 +179,7 @@ def make_policy_config(policy_type: str, **kwargs) -> PreTrainedConfig:
     Args:
         policy_type: The type of the policy. Supported types include "tdmpc",
                      "multi_task_dit", "diffusion", "act", "vqbet", "pi0", "pi05", "sac",
-                     "smolvla", "reward_classifier", "wall_x".
+                     "smolvla", "reward_classifier", "sarm", "topreward", "wall_x".
         **kwargs: Keyword arguments to be passed to the configuration class constructor.
 
     Returns:
@@ -202,6 +208,10 @@ def make_policy_config(policy_type: str, **kwargs) -> PreTrainedConfig:
         return SmolVLAConfig(**kwargs)
     elif policy_type == "reward_classifier":
         return RewardClassifierConfig(**kwargs)
+    elif policy_type == "sarm":
+        return SARMConfig(**kwargs)
+    elif policy_type == "topreward":
+        return TOPRewardConfig(**kwargs)
     elif policy_type == "groot":
         return GrootConfig(**kwargs)
     elif policy_type == "xvla":
@@ -401,6 +411,13 @@ def make_pre_post_processors(
             config=policy_cfg,
             dataset_stats=kwargs.get("dataset_stats"),
             dataset_meta=kwargs.get("dataset_meta"),
+        )
+    elif isinstance(policy_cfg, TOPRewardConfig):
+        from .topreward.processor_topreward import make_topreward_pre_post_processors
+
+        processors = make_topreward_pre_post_processors(
+            config=policy_cfg,
+            dataset_stats=kwargs.get("dataset_stats"),
         )
     elif isinstance(policy_cfg, GrootConfig):
         from .groot.processor_groot import make_groot_pre_post_processors
