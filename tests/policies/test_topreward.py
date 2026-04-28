@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from types import SimpleNamespace
+import tomllib
 
 import numpy as np
 import pytest
@@ -23,6 +24,15 @@ import torch
 from lerobot.policies.factory import get_policy_class, make_policy_config
 from lerobot.policies.topreward.configuration_topreward import TOPRewardConfig
 from lerobot.policies.topreward.modeling_topreward import TOPRewardModel, TOPRewardOutput
+
+
+def test_topreward_extra_installs_accelerate_for_device_map_loading():
+    with open("pyproject.toml", "rb") as f:
+        pyproject = tomllib.load(f)
+
+    topreward_extra = pyproject["project"]["optional-dependencies"]["topreward"]
+
+    assert any(dependency.startswith("accelerate") for dependency in topreward_extra)
 
 
 class FakeInputs(dict):
