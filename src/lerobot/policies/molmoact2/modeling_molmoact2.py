@@ -175,6 +175,32 @@ def _hf_token() -> str | None:
     return os.environ.get("HF_TOKEN") or os.environ.get("HF_ACCESS_TOKEN")
 
 
+# Joint indices for SO-100/SO-101 in norm_stats order:
+# ['shoulder_pan', 'shoulder_lift', 'elbow_flex', 'wrist_flex', 'wrist_roll', 'gripper']
+_SO101_SHOULDER_LIFT_IDX = 1
+_SO101_ELBOW_FLEX_IDX = 2
+
+
+def _apply_so101_state_compat(state: np.ndarray) -> np.ndarray:
+    # New (post-PR #777) → legacy convention expected by the MolmoAct2 checkpoint.
+    if state.shape[-1] <= _SO101_ELBOW_FLEX_IDX:
+        return state
+    state = state.copy()
+    state[..., _SO101_SHOULDER_LIFT_IDX] = 90.0 - state[..., _SO101_SHOULDER_LIFT_IDX]
+    state[..., _SO101_ELBOW_FLEX_IDX] = state[..., _SO101_ELBOW_FLEX_IDX] + 90.0
+    return state
+
+
+def _apply_so101_action_compat(action: torch.Tensor) -> torch.Tensor:
+    # Legacy actions from the checkpoint → new convention the robot expects.
+    if action.shape[-1] <= _SO101_ELBOW_FLEX_IDX:
+        return action
+    action = action.clone()
+    action[..., _SO101_SHOULDER_LIFT_IDX] = 90.0 - action[..., _SO101_SHOULDER_LIFT_IDX]
+    action[..., _SO101_ELBOW_FLEX_IDX] = action[..., _SO101_ELBOW_FLEX_IDX] - 90.0
+    return action
+
+
 def _resolve_checkpoint_location(checkpoint_path: str) -> tuple[str, bool]:
     checkpoint_path = str(checkpoint_path or "").strip()
     if not checkpoint_path:
@@ -211,6 +237,19 @@ class MolmoAct2Policy(PreTrainedPolicy):
         checkpoint_location, _ = _resolve_checkpoint_location(self.config.checkpoint_path)
         trust_remote_code = bool(getattr(self.config, "trust_remote_code", True))
         device = torch.device(self.config.device or "cpu")
+        dtype_name = str(getattr(self.config, "dtype", "float32") or "float32").lower().replace("torch.", "")
+        dtype_map = {
+            "float32": torch.float32,
+            "fp32": torch.float32,
+            "float16": torch.float16,
+            "fp16": torch.float16,
+            "half": torch.float16,
+            "bfloat16": torch.bfloat16,
+            "bf16": torch.bfloat16,
+        }
+        if dtype_name not in dtype_map:
+            raise ValueError(f"Unsupported dtype {dtype_name!r} for MolmoAct2 policy.")
+        model_dtype = dtype_map[dtype_name]
         self.processor = AutoProcessor.from_pretrained(
             checkpoint_location,
             trust_remote_code=trust_remote_code,
@@ -220,7 +259,7 @@ class MolmoAct2Policy(PreTrainedPolicy):
         self.model = AutoModelForImageTextToText.from_pretrained(
             checkpoint_location,
             trust_remote_code=trust_remote_code,
-            dtype=torch.float32,
+            dtype=model_dtype,
             low_cpu_mem_usage=True,
         ).to(device)
         self.model.eval()
@@ -237,6 +276,21 @@ class MolmoAct2Policy(PreTrainedPolicy):
                 trust_remote_code=trust_remote_code,
                 token=_hf_token(),
             )
+
+    @classmethod
+    def from_pretrained(cls, pretrained_name_or_path=None, *, config=None, **kwargs):
+        if config is None:
+            raise ValueError(
+                "MolmoAct2Policy.from_pretrained requires an explicit `config` — "
+                "weights are loaded from `config.checkpoint_path` via transformers."
+            )
+        for unused in ("force_download", "resume_download", "proxies", "token",
+                       "cache_dir", "local_files_only", "revision", "strict"):
+            kwargs.pop(unused, None)
+        policy = cls(config, **kwargs)
+        policy.to(config.device)
+        policy.eval()
+        return policy
 
     def reset(self) -> None:
         self._action_queues = defaultdict(lambda: deque())
@@ -355,6 +409,7 @@ class MolmoAct2Policy(PreTrainedPolicy):
         enable_depth_reasoning, enable_adaptive_depth = self._resolve_depth_flags()
         enable_cuda_graph = bool(getattr(self.config, "enable_cuda_graph", True))
         normalize_language = bool(getattr(self.config, "normalize_language", True))
+        apply_so101_compat = bool(getattr(self.config, "apply_so101_calibration_compat", False))
 
         actions: list[Tensor] = []
         self._last_depth_video_codes_by_batch = {}
@@ -367,15 +422,19 @@ class MolmoAct2Policy(PreTrainedPolicy):
                 obs = self._slice_observation_batch(batch, idx, batch_size)
                 depth_cache = self._depth_caches.get(idx)
 
+                state = self._extract_state(obs)
+                if apply_so101_compat:
+                    state = _apply_so101_state_compat(state)
+
                 start = time.perf_counter()
                 with torch.inference_mode():
                     predict_kwargs = {
                         "processor": self.processor,
                         "images": self._extract_images(obs),
                         "task": self._extract_task(obs),
-                        "state": self._extract_state(obs),
+                        "state": state,
                         "norm_tag": requested_norm_tag,
-                        "action_mode": str(self.config.action_mode),
+                        "inference_action_mode": str(self.config.action_mode),
                         "enable_depth_reasoning": enable_depth_reasoning,
                         "enable_adaptive_depth": enable_adaptive_depth,
                         "depth_cache": depth_cache,
@@ -400,7 +459,10 @@ class MolmoAct2Policy(PreTrainedPolicy):
                     self._last_depth_video_codes_by_batch[idx] = (
                         output.depth_bins.detach().cpu().reshape(-1).numpy().astype(np.int64).copy()
                     )
-                self._enqueue_action_chunk(action_queue, output.actions)
+                action_chunk = output.actions
+                if apply_so101_compat:
+                    action_chunk = _apply_so101_action_compat(action_chunk)
+                self._enqueue_action_chunk(action_queue, action_chunk)
 
             if not action_queue:
                 raise RuntimeError("MolmoAct2 model returned an empty action chunk.")

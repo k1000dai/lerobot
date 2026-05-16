@@ -27,6 +27,13 @@ class MolmoAct2Config(PreTrainedConfig):
     depth_mode: int | None = None
     norm_tag: str = ""
     trust_remote_code: bool = True
+    dtype: str = "float32"
+    # See https://huggingface.co/docs/lerobot/backwardcomp — PR #777 changed the
+    # SO-100/SO-101 calibration convention (zero point moved from "arm horizontal"
+    # to mid-range, and shoulder_lift sign flipped). MolmoAct2 was trained on the
+    # old convention, so when running on a robot calibrated with the new lerobot
+    # tooling we have to translate state in / actions out.
+    apply_so101_calibration_compat: bool = False
 
     input_features: dict[str, PolicyFeature] = field(default_factory=dict)
     output_features: dict[str, PolicyFeature] = field(
